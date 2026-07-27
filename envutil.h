@@ -20,6 +20,9 @@
 #ifndef ENV_UTIL_VALUE_BUFF_SIZE
   #define ENV_UTIL_VALUE_BUFF_SIZE 2048
 #endif
+#ifndef ENV_UTIL_RET_KEYS_DEFAULT_CAPAC
+  #define ENV_UTIL_RET_KEYS_DEFAULT_CAPAC 8
+#endif
 
 //errors
 enum env_load_err {
@@ -29,6 +32,12 @@ enum env_load_err {
   ENV_LOAD_ERR_SETENV_ERR,
   ENV_LOAD_ERR_PARSE_ERR,
   ENV_LOAD_ERR_FILE_READ_ERR,
+};
+
+struct env_load_data {
+  const enum env_load_err errType;
+  const char **const loadedKeys;
+  const size_t loadedKeysCount;
 };
 
 enum env_lookup_err {
@@ -83,6 +92,56 @@ enum env_load_err env_load(const char *restrict filePath, const bool overwrite){
   return ENV_LOAD_OK;
 }
 
+#define _env_push_arr(arr, capac, count, item) do {\
+  if(capac == count){\
+    capac *= 2;\
+    arr = realloc(arr, sizeof(item) * capac);\
+  }\
+  arr[count++] = item;\
+} while(false);
+
+struct env_load_data env_load_get_data(const char *restrict filePath, const bool overwrite){
+  FILE *file = fopen(filePath != NULL ? filePath : "./.env", "r");
+  if(file == NULL) return (env_load_data){ENV_LOAD_ERR_NO_FILE};
+
+  size_t loadedKeysCapacity = ENV_UTIL_RET_KEYS_DEFAULT_CAPAC;
+  char **loadedKeys = malloc(sizeof(char*) * loadedKeysCapacity);
+  size_t loadedKeysCount = 0;
+
+  char buffer[ENV_UTIL_MAX_BUFF_SIZE];
+  size_t bufferCount = 0;//count does not include the null term
+  int result;
+  for(;;){
+    result = _load_line_into_buff(buffer, &bufferCount, file);
+    if(result != 0) break;
+    char key[ENV_UTIL_KEY_BUFF_SIZE], value[ENV_UTIL_VALUE_BUFF_SIZE];
+    if(_get_kvp_from_buff(buffer, bufferCount, key, value) == 0){
+      bool pushKey = overwrite || getenv(key) == NULL;//push the key if either we overwrite the var, or the var doesn't exist in the env
+      if(setenv(key, value, overwrite) == 0){
+        if(pushKey){
+          char *keyCopy = malloc(strlen(key) + 1);
+          strcpy(keyCopy, key);
+          _env_push_arr(loadedKeys, loadedKeysCapacity, loadedKeysCount, keyCopy);
+        }
+        continue;
+      }
+      fclose(file);
+      return (env_load_data){ENV_LOAD_ERR_SETENV_ERR}{;
+    }
+    fclose(file);
+    return (env_load_data){ENV_LOAD_ERR_PARSE_ERR};
+  }
+  fclose(file);
+  if(result == 3) return (env_load_data){ENV_LOAD_ERR_LINE_EXCEED_CAPAC};
+  if(result == 2) return (env_load_data){ENV_LOAD_ERR_FILE_READ_ERR};
+  return (env_load_data){ENV_LOAD_OK, loadedKeys, loadedKeysCount};
+}
+
+#undef _env_push_arr
+
+void env_load_free_data(struct env_load_data *restrict data){
+
+}
 /*
 searches through a file and tries to find a key that matches <key>, and puts the corresponding value into <value>
 if the entry is not found in the file, it looks through the environment
