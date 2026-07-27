@@ -8,10 +8,16 @@
 #include <string.h>
 
 //constants
-#ifndef ENV_UTIL_OVERRIDE_SIZES
+#ifndef ENV_UTIL_MAX_BUFF_SIZE
   #define ENV_UTIL_MAX_BUFF_SIZE 4096
+#endif
+#ifndef ENV_UTIL_BUFF_LOAD_SIZE
   #define ENV_UTIL_BUFF_LOAD_SIZE 64
+#endif
+#ifndef ENV_UTIL_KEY_BUFF_SIZE
   #define ENV_UTIL_KEY_BUFF_SIZE 1024
+#endif
+#ifndef ENV_UTIL_VALUE_BUFF_SIZE
   #define ENV_UTIL_VALUE_BUFF_SIZE 2048
 #endif
 

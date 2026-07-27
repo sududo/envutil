@@ -38,7 +38,7 @@ Certain buffers used during parsing have pre-defined size limits,
 > #define ENV_UTIL_BUFF_LOAD_SIZE 64  
 > #define ENV_UTIL_KEY_BUFF_SIZE 1024  
 > #define ENV_UTIL_VALUE_BUFF_SIZE 2048  
-though theese can be overwritten by defining *ENV_UTIL_OVERRIDE_SIZES* and the 4 macros above
+though theese can be overwritten by defining them before including *envutil.h*
 
 # env_lookup
 

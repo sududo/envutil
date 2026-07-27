@@ -1,4 +1,5 @@
 //imports
+#define ENV_UTIL_BUFF_LOAD_SIZE 16
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -48,8 +49,10 @@ void load_chunk_0(){
   for(size_t i = 0;i < ENV_UTIL_MAX_BUFF_SIZE;i++) buffer[i] = '\0';
   bufferCount = 0;
 
+  char cmpBuff[64] = "123456789123456789123456789123456789123456789123456789123456789";
+  if(ENV_UTIL_BUFF_LOAD_SIZE < sizeof(cmpBuff)) cmpBuff[ENV_UTIL_BUFF_LOAD_SIZE - 1] = '\0';
   if(_load_chunk_into_buff(buffer, &bufferCount, file) != 0) err;
-  if(strcmp(buffer, "123456789123456789123456789123456789123456789123456789123456789") != 0) err;
+  if(strcmp(buffer, cmpBuff) != 0) err;
   if(bufferCount != ENV_UTIL_BUFF_LOAD_SIZE - 1) err;
   fclose(file);
 }
@@ -195,7 +198,6 @@ void parse_comments_5(){
 
 //main
 int main(void){
-
   m_failedTestNums = malloc(sizeof(int) * 8);
   m_failCapacity = 8;
   m_failCount = 0;
