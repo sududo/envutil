@@ -140,7 +140,6 @@ int _load_line_into_buff(char *restrict buffer, size_t *restrict pCount, FILE *r
   *pCount = 0;
   for(size_t i = 0;i < ENV_UTIL_MAX_BUFF_SIZE;i++) buffer[i] = '\0';
   for(;;){
-    assert(file != NULL);
     int result = _load_chunk_into_buff(buffer, pCount, file);
     if(result != 0) return result;
     for(;;(*pCount)--){
