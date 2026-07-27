@@ -196,6 +196,34 @@ void parse_comments_5(){
 
 }
 
+void env_load_get_data_6(){
+  e(6);
+
+ setenv("f1", "bullshit", true);
+ struct env_load_data loadData = env_load_get_data("./test3.env", true);
+ if(loadData.errType != ENV_LOAD_OK) err;
+ if(loadData.loadedKeysCount != 3) err;
+ if(strcmp(loadData.loadedKeys[0], "f1") != 0) err;
+ if(strcmp(loadData.loadedKeys[1], "fiel2") != 0) err;
+ if(strcmp(loadData.loadedKeys[2], "fld3") != 0) err;
+
+ env_free_load_data(&loadData);
+
+ unsetenv("f1");
+ unsetenv("fiel2");
+ unsetenv("fld3");
+
+ setenv("f1", "bullshit", true);
+
+ struct env_load_data loadData2 = env_load_get_data("./test3.env", false);
+ if(loadData2.errType != ENV_LOAD_OK) err;
+ if(loadData2.loadedKeysCount != 2) err;
+ if(strcmp(loadData2.loadedKeys[0], "fiel2") != 0) err;
+ if(strcmp(loadData2.loadedKeys[1], "fld3") != 0) err;
+
+ env_free_load_data(&loadData2);
+}
+
 //main
 int main(void){
   m_failedTestNums = malloc(sizeof(int) * 8);
@@ -208,6 +236,7 @@ int main(void){
   env_lookup_4();
   env_load_3();
   parse_comments_5();
+  env_load_get_data_6();
 
   log_test_finished_message();
   return 0;
