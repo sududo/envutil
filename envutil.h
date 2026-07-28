@@ -65,8 +65,7 @@ int _get_kvp_from_buff_intrpt(char *restrict buffer, size_t count, const char *r
 int _parse_value(char *restrict buffer, size_t count, char *restrict value, const size_t valueSize, size_t i);
 
 #ifdef __unix__
-#define _env_set(key, value, overwrite) set_env(key, value, overwrite)
-#define _env_get(key) get_env(key)
+#define _env_set(key, value, overwrite) setenv(key, value, overwrite)
 #elif defined(_WIN32)
 #define _env_set(key, value, overwrite) w_env_set(key, value, overwrite)
 int w_env_set(const char *restrict key, const char *restrict value, const bool overwrite){
@@ -74,7 +73,6 @@ int w_env_set(const char *restrict key, const char *restrict value, const bool o
   if(GetEnvironmentVariable(key, tempBuff, sizeof(tempBuff)) != 0 && !overwrite) return 0;
   return SetEnvironmentVariable(key, value) == 0 ? 1 : 0;
 }
-#define _env_get(key) get_env(key)
 #endif
 
 /*
@@ -178,6 +176,7 @@ struct env_load_data env_load_get_data(const char *restrict filePath, const bool
 }
 
 #undef _env_push_arr
+#undef _env_set
 
 /*
 frees each element of <data->loadedKeys> and <data->loadedKeys> itself, and also sets <data->loadedKeys> to NULL
