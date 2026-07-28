@@ -78,11 +78,13 @@ enum env_load_err env_load(const char *restrict filePath, const bool overwrite){
     result = _load_line_into_buff(buffer, &bufferCount, file);
     if(result != 0) break;
     char key[ENV_UTIL_KEY_BUFF_SIZE], value[ENV_UTIL_VALUE_BUFF_SIZE];
-    if(_get_kvp_from_buff(buffer, bufferCount, key, value) == 0){
+    result = _get_kvp_from_buff(buffer, bufferCount, key, value);
+    if(result == 0){
       if(setenv(key, value, overwrite) == 0) continue;
       fclose(file);
       return ENV_LOAD_ERR_SETENV_ERR;
     }
+    if(result == -1 || result == -2) continue;
     fclose(file);
     return ENV_LOAD_ERR_PARSE_ERR;
   }
@@ -125,7 +127,8 @@ struct env_load_data env_load_get_data(const char *restrict filePath, const bool
     result = _load_line_into_buff(buffer, &bufferCount, file);
     if(result != 0) break;
     char key[ENV_UTIL_KEY_BUFF_SIZE], value[ENV_UTIL_VALUE_BUFF_SIZE];
-    if(_get_kvp_from_buff(buffer, bufferCount, key, value) == 0){
+    result = _get_kvp_from_buff(buffer, bufferCount, key, value);
+    if(result == 0){
       bool pushKey = overwrite || getenv(key) == NULL;//push the key if either we overwrite the var, or the var doesn't exist in the env
       if(setenv(key, value, overwrite) == 0){
         if(pushKey){
@@ -138,6 +141,7 @@ struct env_load_data env_load_get_data(const char *restrict filePath, const bool
       fclose(file);
       return (struct env_load_data){ENV_LOAD_ERR_SETENV_ERR};
     }
+    if(result == -1 || result == -2) continue;
     fclose(file);
     return (struct env_load_data){ENV_LOAD_ERR_PARSE_ERR};
   }
@@ -237,7 +241,7 @@ int _load_chunk_into_buff(char *restrict buffer, size_t *restrict pCount, FILE *
 /*
 Iterates through <buffer> and attempts to load the key into <*pKey> and the value into <*pValue> using '=' as a separator
 returns a 0 if succesfull, 1 if unexpected '\n', 2 if key is empty, 3 if key is too long, 4 if equals is not present before value, 5 if value is empty, 6 if value is too long, 7 if quote is not closed, 8 if bad escape seq,
-9 if invalid char, -1 if line is a comment
+9 if invalid char, -1 if line is a comment, -2 if line is empty
 buffer should be '\n' terminated
 */
 
@@ -248,7 +252,7 @@ int _get_kvp_from_buff(char *restrict buffer, size_t count, char *restrict key, 
   for(;;i++){//go until non-space char
     if(buffer[i] == '#') return -1;
     if(buffer[i] == '\0') return 9;
-    if(buffer[i] == '\n') return 1;
+    if(buffer[i] == '\n') return -2;
     if(buffer[i] != ' ') break;
   }
 
@@ -282,7 +286,7 @@ int _get_kvp_from_buff(char *restrict buffer, size_t count, char *restrict key, 
 /*
 Iterates through <buffer> and attempts to match the key to <matchKey>, if match fails returns prematureley if key doesnt match
 returns a 0 if succesfull, 1 if unexpected '\n', 2 if key is empty, 3 if key is too long, 4 if equals is not present before value, 5 if value is empty, 6 if value is too long, 7 if quote is not closed, 8 if bad escape seq,
-9 if invalid char, 10 if key doesn't match, -1 if line is a comment
+9 if invalid char, 10 if key doesn't match, -1 if line is a comment, -2 if line is empty
 buffer should be '\n' terminated
 */
 int _get_kvp_from_buff_intrpt(char *restrict buffer, size_t count, const char *restrict cmpKey, char *restrict value, const size_t valueSize){
@@ -293,7 +297,7 @@ int _get_kvp_from_buff_intrpt(char *restrict buffer, size_t count, const char *r
   for(;;i++){//go until n
     if(buffer[i] == '#') return -1;
     if(buffer[i] == '\0') return 9;
-    if(buffer[i] == '\n') return 1;
+    if(buffer[i] == '\n') return -2;
     if(buffer[i] != ' ') break;
   }
 
