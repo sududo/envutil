@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 //constants
 #ifndef ENV_UTIL_MAX_BUFF_SIZE
@@ -61,6 +64,19 @@ int _get_kvp_from_buff(char *restrict buffer, size_t count, char *restrict key, 
 int _get_kvp_from_buff_intrpt(char *restrict buffer, size_t count, const char *restrict cmpKey, char *restrict value, const size_t valueSize);
 int _parse_value(char *restrict buffer, size_t count, char *restrict value, const size_t valueSize, size_t i);
 
+#ifdef __unix__
+#define _env_set(key, value, overwrite) set_env(key, value, overwrite)
+#define _env_get(key) get_env(key)
+#elif defined(_WIN32)
+#define _env_set(key, value, overwrite) w_env_set(key, value, overwrite)
+int w_env_set(const char *restrict key, const char *restrict value, const bool overwrite){
+  char tempBuff[2];
+  if(GetEnvironmentVariable(key, tempBuff, sizeof(tempBuff)) != 0 && !overwrite) return 0;
+  return SetEnvironmentVariable(key, value) == 0 ? 1 : 0;
+}
+#define _env_get(key) get_env(key)
+#endif
+
 /*
 parses a file and loads all of it's entries into the current environment (the loaded values are accessible
 with getenv())
@@ -74,16 +90,22 @@ enum env_load_err env_load(const char *restrict filePath, const bool overwrite){
   char buffer[ENV_UTIL_MAX_BUFF_SIZE];
   size_t bufferCount = 0;//count does not include the null term
   int result;
+  bool returnNextLoop = false;
   for(;;){
     result = _load_line_into_buff(buffer, &bufferCount, file);
-    if(result != 0) break;
+    if(result != 0 && result != -1) break;
+    if(result == -1) returnNextLoop = true;
     char key[ENV_UTIL_KEY_BUFF_SIZE], value[ENV_UTIL_VALUE_BUFF_SIZE];
     result = _get_kvp_from_buff(buffer, bufferCount, key, value);
     if(result == 0){
-      if(setenv(key, value, overwrite) == 0) continue;
+      if(_env_set(key, value, overwrite) == 0){
+        if(returnNextLoop) break;
+        else continue;
+      }
       fclose(file);
       return ENV_LOAD_ERR_SETENV_ERR;
     }
+    if(returnNextLoop) break;
     if(result == -1 || result == -2) continue;
     fclose(file);
     return ENV_LOAD_ERR_PARSE_ERR;
@@ -123,24 +145,28 @@ struct env_load_data env_load_get_data(const char *restrict filePath, const bool
   char buffer[ENV_UTIL_MAX_BUFF_SIZE];
   size_t bufferCount = 0;//count does not include the null term
   int result;
+  bool returnNextLoop = false;
   for(;;){
     result = _load_line_into_buff(buffer, &bufferCount, file);
-    if(result != 0) break;
+    if(result != 0 && result != -1) break;
+    if(result == -1) returnNextLoop = true;
     char key[ENV_UTIL_KEY_BUFF_SIZE], value[ENV_UTIL_VALUE_BUFF_SIZE];
     result = _get_kvp_from_buff(buffer, bufferCount, key, value);
     if(result == 0){
       bool pushKey = overwrite || getenv(key) == NULL;//push the key if either we overwrite the var, or the var doesn't exist in the env
-      if(setenv(key, value, overwrite) == 0){
+      if(_env_set(key, value, overwrite) == 0){
         if(pushKey){
           char *keyCopy = malloc(strlen(key) + 1);
           strcpy(keyCopy, key);
           _env_push_arr(loadedKeys, loadedKeysCapacity, loadedKeysCount, keyCopy);
         }
+        if(returnNextLoop) break;
         continue;
       }
       fclose(file);
       return (struct env_load_data){ENV_LOAD_ERR_SETENV_ERR};
     }
+    if(returnNextLoop) break;
     if(result == -1 || result == -2) continue;
     fclose(file);
     return (struct env_load_data){ENV_LOAD_ERR_PARSE_ERR};
@@ -183,15 +209,18 @@ enum env_lookup_err env_lookup(const char *restrict filePath, const char *restri
   char buffer[ENV_UTIL_MAX_BUFF_SIZE];
   size_t bufferCount = 0;//count does not include the null term
   int result;
+  bool returnNextLoop = false;
   for(;;){
     result = _load_line_into_buff(buffer, &bufferCount, file);
-    if(result != 0) break;
+    if(result != 0 && result != -1) break;
+    if(result == -1) returnNextLoop = true;
     result = _get_kvp_from_buff_intrpt(buffer, bufferCount, matchKey, outValue, outValueSize);
     switch(result){
       case 0:
         fclose(file);
         return ENV_LOOK_OK_FILE;
       case 10:
+        if(returnNextLoop) break;
         continue;
       case 6:
         fclose(file);
@@ -199,7 +228,8 @@ enum env_lookup_err env_lookup(const char *restrict filePath, const char *restri
       default:
         fclose(file);
         return ENV_LOOK_ERR_PARSE_ERR;
-      }
+    }
+    if(returnNextLoop) break;
   }
   fclose(file);
   if(result == 3) return ENV_LOOK_ERR_LINE_EXCEED_CAPAC;
@@ -214,16 +244,20 @@ enum env_lookup_err env_lookup(const char *restrict filePath, const char *restri
 }
 
 //Loads characters into <*pBuffer> until it finds a '\n', and increases <*pCount>
-//returns 0 if successfull, 1 if eof, 2 if file read error, and 3 if <*pBuffer> doesn't have capacity for load
+//returns 0 if successfull, 1 if eof, 2 if file read error, 3 if <*pBuffer> doesn't have capacity for load, -1 if eof but found data
 int _load_line_into_buff(char *restrict buffer, size_t *restrict pCount, FILE *restrict file){
   *pCount = 0;
   for(size_t i = 0;i < ENV_UTIL_MAX_BUFF_SIZE;i++) buffer[i] = '\0';
   for(;;){
     int result = _load_chunk_into_buff(buffer, pCount, file);
-    if(result != 0) return result;
+    if(result != 0 && !(*pCount != 0 && result == 1)) return result;
     for(;;(*pCount)--){
       if(buffer[(*pCount) - 1] == '\0') continue;
       else if(buffer[(*pCount) - 1] == '\n') return 0;
+      else if(result == 1){
+        buffer[*pCount] = '\n';
+        return -1;
+      }
       else break;
     }
   }
