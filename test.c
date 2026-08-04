@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#define ENVUTIL_IMPLEMENTATION
 #include "envutil.h"
 
 //globals
