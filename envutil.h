@@ -3,29 +3,7 @@
 #define HEADER_ENVUTIL
 
 //imports
-#include <stdlib.h>
 #include <stdbool.h>
-#include <string.h>
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
-//constants
-#ifndef ENV_UTIL_MAX_BUFF_SIZE
-  #define ENV_UTIL_MAX_BUFF_SIZE 4096
-#endif
-#ifndef ENV_UTIL_BUFF_LOAD_SIZE
-  #define ENV_UTIL_BUFF_LOAD_SIZE 64
-#endif
-#ifndef ENV_UTIL_KEY_BUFF_SIZE
-  #define ENV_UTIL_KEY_BUFF_SIZE 1024
-#endif
-#ifndef ENV_UTIL_VALUE_BUFF_SIZE
-  #define ENV_UTIL_VALUE_BUFF_SIZE 2048
-#endif
-#ifndef ENV_UTIL_RET_KEYS_DEFAULT_CAPAC
-  #define ENV_UTIL_RET_KEYS_DEFAULT_CAPAC 8
-#endif
 
 //errors
 enum env_load_err {
@@ -57,12 +35,45 @@ enum env_lookup_err {
   ENV_LOOK_ERR_OUT_CAPAC_ZERO,
 };
 
-//private functions
+enum env_load_err env_load(const char *restrict filePath, const bool overwrite);
+struct env_load_data env_load_get_data(const char *restrict filePath, const bool overwrite);
+void env_free_load_data(struct env_load_data *restrict data);
+enum env_lookup_err env_lookup(const char *restrict filePath, const char *restrict matchKey, char *restrict outValue, const size_t outValueSize);
+
 int _load_line_into_buff(char *restrict buffer, size_t *restrict pCount, FILE *restrict file);
 int _load_chunk_into_buff(char *restrict buffer, size_t *restrict pCount, FILE *restrict file);
 int _get_kvp_from_buff(char *restrict buffer, size_t count, char *restrict key, char *restrict value);
 int _get_kvp_from_buff_intrpt(char *restrict buffer, size_t count, const char *restrict cmpKey, char *restrict value, const size_t valueSize);
 int _parse_value(char *restrict buffer, size_t count, char *restrict value, const size_t valueSize, size_t i);
+
+#endif
+
+#ifdef ENVUTIL_IMPLEMENTATION
+
+//constants
+#ifndef ENV_UTIL_MAX_BUFF_SIZE
+  #define ENV_UTIL_MAX_BUFF_SIZE 4096
+#endif
+#ifndef ENV_UTIL_BUFF_LOAD_SIZE
+  #define ENV_UTIL_BUFF_LOAD_SIZE 64
+#endif
+#ifndef ENV_UTIL_KEY_BUFF_SIZE
+  #define ENV_UTIL_KEY_BUFF_SIZE 1024
+#endif
+#ifndef ENV_UTIL_VALUE_BUFF_SIZE
+  #define ENV_UTIL_VALUE_BUFF_SIZE 2048
+#endif
+#ifndef ENV_UTIL_RET_KEYS_DEFAULT_CAPAC
+  #define ENV_UTIL_RET_KEYS_DEFAULT_CAPAC 8
+#endif
+
+//imports
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #ifdef __unix__
 #define _env_set(key, value, overwrite) setenv(key, value, overwrite)
@@ -70,7 +81,7 @@ int _parse_value(char *restrict buffer, size_t count, char *restrict value, cons
 #define _env_set(key, value, overwrite) w_env_set(key, value, overwrite)
 int w_env_set(const char *restrict key, const char *restrict value, const bool overwrite){
   char tempBuff[2];
-  if(GetEnvironmentVariable(key, tempBuff, sizeof(tempBuff)) != 0 && !overwrite) return 0;
+  if(GetEnvironmenA_IMPLEMENTATIONtVariable(key, tempBuff, sizeof(tempBuff)) != 0 && !overwrite) return 0;
   return SetEnvironmentVariable(key, value) == 0 ? 1 : 0;
 }
 #endif

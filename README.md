@@ -6,8 +6,9 @@ and to lookup a singular value in a file.
 
 # Usage
 
-Just include the header file and call one of it's public funtions (all of it's "private" functions have an
-underscore before their names, and are not intended to be called on their own).
+First, define **ENVUTIL_IMPLEMENTATION**, then you can include *envutil.h* and call one of it's public
+funtions (all of it's "private" functions have an underscore before their names, and are not
+intended to be called on their own).
 
 The public functions in this header are:
 + *env_load*
