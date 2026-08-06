@@ -6,22 +6,22 @@
 #include <stdbool.h>
 
 //errors
-enum env_load_err {
+typedef enum {
   ENV_LOAD_OK,
   ENV_LOAD_ERR_NO_FILE,
   ENV_LOAD_ERR_LINE_EXCEED_CAPAC,
   ENV_LOAD_ERR_SETENV_ERR,
   ENV_LOAD_ERR_PARSE_ERR,
   ENV_LOAD_ERR_FILE_READ_ERR,
-};
+} env_load_error;
 
-struct env_load_data {
-  enum env_load_err errType;
+typedef struct {
+  env_load_error errType;
   char **loadedKeys;
   size_t loadedKeysCount;
-};
+} env_load_data_t;
 
-enum env_lookup_err {
+typedef enum {
   ENV_LOOK_OK_FILE,
   ENV_LOOK_OK_ENV,
   ENV_LOOK_ERR_NO_FILE,
@@ -33,12 +33,12 @@ enum env_lookup_err {
   ENV_LOOK_ERR_MATCH_KEY_NULL,
   ENV_LOOK_ERR_OUT_VALUE_NULL,
   ENV_LOOK_ERR_OUT_CAPAC_ZERO,
-};
+} env_lookup_error;
 
-enum env_load_err env_load(const char *restrict filePath, const bool overwrite);
-struct env_load_data env_load_get_data(const char *restrict filePath, const bool overwrite);
-void env_free_load_data(struct env_load_data *restrict data);
-enum env_lookup_err env_lookup(const char *restrict filePath, const char *restrict matchKey, char *restrict outValue, const size_t outValueSize);
+env_load_error env_load(const char *restrict filePath, const bool overwrite);
+env_load_data_t env_load_get_data(const char *restrict filePath, const bool overwrite);
+void env_free_load_data(env_load_data_t *restrict data);
+env_lookup_error env_lookup(const char *restrict filePath, const char *restrict matchKey, char *restrict outValue, const size_t outValueSize);
 
 int _load_line_into_buff(char *restrict buffer, size_t *restrict pCount, FILE *restrict file);
 int _load_chunk_into_buff(char *restrict buffer, size_t *restrict pCount, FILE *restrict file);
@@ -92,7 +92,7 @@ with getenv())
 if <overwrite> is true, it will overwrite the values of already present envvars with ones found in the file, otherwise it will skip them
 if <filePath> is NULL, it will default to the file .env in the current directory
 */
-enum env_load_err env_load(const char *restrict filePath, const bool overwrite){
+env_load_error env_load(const char *restrict filePath, const bool overwrite){
   FILE *file = fopen(filePath != NULL ? filePath : "./.env", "r");
   if(file == NULL) return ENV_LOAD_ERR_NO_FILE;
 
@@ -143,9 +143,9 @@ if <filePath> is NULL, it will default to the file .env in the current directory
 the returned data contains the error type, an array containing strings of the set keys, and the count of set keys
 the returned data is heap-allocated, so it needs to be free (see env_free_load_data)
 */
-struct env_load_data env_load_get_data(const char *restrict filePath, const bool overwrite){
+env_load_data_t env_load_get_data(const char *restrict filePath, const bool overwrite){
   FILE *file = fopen(filePath != NULL ? filePath : "./.env", "r");
-  if(file == NULL) return (struct env_load_data){ENV_LOAD_ERR_NO_FILE};
+  if(file == NULL) return (env_load_data_t){ENV_LOAD_ERR_NO_FILE};
 
   size_t loadedKeysCapacity = ENV_UTIL_RET_KEYS_DEFAULT_CAPAC;
   char **loadedKeys = malloc(sizeof(char*) * loadedKeysCapacity);
@@ -173,17 +173,17 @@ struct env_load_data env_load_get_data(const char *restrict filePath, const bool
         continue;
       }
       fclose(file);
-      return (struct env_load_data){ENV_LOAD_ERR_SETENV_ERR};
+      return (env_load_data_t){ENV_LOAD_ERR_SETENV_ERR};
     }
     if(returnNextLoop) break;
     if(result == -1 || result == -2) continue;
     fclose(file);
-    return (struct env_load_data){ENV_LOAD_ERR_PARSE_ERR};
+    return (env_load_data_t){ENV_LOAD_ERR_PARSE_ERR};
   }
   fclose(file);
-  if(result == 3) return (struct env_load_data){ENV_LOAD_ERR_LINE_EXCEED_CAPAC};
-  if(result == 2) return (struct env_load_data){ENV_LOAD_ERR_FILE_READ_ERR};
-  return (struct env_load_data){ENV_LOAD_OK, loadedKeys, loadedKeysCount};
+  if(result == 3) return (env_load_data_t){ENV_LOAD_ERR_LINE_EXCEED_CAPAC};
+  if(result == 2) return (env_load_data_t){ENV_LOAD_ERR_FILE_READ_ERR};
+  return (env_load_data_t){ENV_LOAD_OK, loadedKeys, loadedKeysCount};
 }
 
 #undef _env_push_arr
@@ -192,7 +192,7 @@ struct env_load_data env_load_get_data(const char *restrict filePath, const bool
 /*
 frees each element of <data->loadedKeys> and <data->loadedKeys> itself, and also sets <data->loadedKeys> to NULL
 */
-void env_free_load_data(struct env_load_data *restrict data){
+void env_free_load_data(env_load_data_t *restrict data){
   for(size_t i = 0;i < data->loadedKeysCount;i++) free(data->loadedKeys[i]);
   free(data->loadedKeys);
   data->loadedKeys = NULL;
@@ -203,7 +203,7 @@ searches through a file and tries to find a key that matches <key>, and puts the
 if the entry is not found in the file, it looks through the environment
 if <filePath> is NULL, it will default to the file .env in the current directory
 */
-enum env_lookup_err env_lookup(const char *restrict filePath, const char *restrict matchKey, char *restrict outValue, const size_t outValueSize){
+env_lookup_error env_lookup(const char *restrict filePath, const char *restrict matchKey, char *restrict outValue, const size_t outValueSize){
   if(matchKey == NULL) return ENV_LOOK_ERR_MATCH_KEY_NULL;
   if(outValue == NULL) return ENV_LOOK_ERR_OUT_VALUE_NULL;
   if(outValueSize == 0) return ENV_LOOK_ERR_OUT_CAPAC_ZERO;
