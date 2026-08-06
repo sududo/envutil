@@ -201,7 +201,7 @@ void env_load_get_data_6(){
   e(6);
 
  setenv("f1", "bullshit", true);
- struct env_load_data loadData = env_load_get_data("./test3.env", true);
+ env_load_data_t loadData = env_load_get_data("./test3.env", true);
  if(loadData.errType != ENV_LOAD_OK) err;
  if(loadData.loadedKeysCount != 3) err;
  if(strcmp(loadData.loadedKeys[0], "f1") != 0) err;
@@ -216,7 +216,7 @@ void env_load_get_data_6(){
 
  setenv("f1", "bullshit", true);
 
- struct env_load_data loadData2 = env_load_get_data("./test3.env", false);
+ env_load_data_t loadData2 = env_load_get_data("./test3.env", false);
  if(loadData2.errType != ENV_LOAD_OK) err;
  if(loadData2.loadedKeysCount != 2) err;
  if(strcmp(loadData2.loadedKeys[0], "fiel2") != 0) err;
